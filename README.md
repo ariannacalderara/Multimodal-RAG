@@ -22,7 +22,7 @@ The pipeline moves beyond text-only processing by implementing two specialized f
 
 ## Setup 
 
-1. Pull the models:
+1. Pull the models after installing Ollama:
    
    `ollama pull tinyllama`
    `ollama pull moondream`
@@ -31,11 +31,15 @@ The pipeline moves beyond text-only processing by implementing two specialized f
    
    - `conda create env -n envmultimodal`
    - `conda activate envmultimodal`
-   - `pip install streamlit streamlit chromadb sentence-transformer requests "unstructured[all-docs" fitz #or pyumpdf`
+   - `pip install "sentence-transformers==2.7.0" "transformers==4.41.0" "numpy==1.26.4"`
+   - `pip install streamlit chromadb pymupdf requests`
+   - `pip install "unstructured[all-docs]"`
+   - `brew install tesseract poppler libmagic`
 
 3. Run the Streamlit app
    
    - `streamlit run multimodal.py`
+  
 
 
 ## Results & Testing
