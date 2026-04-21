@@ -10,7 +10,6 @@ from datetime import datetime
 from unstructured.partition.auto import partition
 from unstructured.documents.elements import Title
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
 TEMP_DIR   = "temp_files_multimodal"
 CHROMA_DIR = "chroma_data_multimodal"
@@ -20,13 +19,12 @@ OLLAMA_URL   = "http://localhost:11434/api/generate"
 TEXT_MODEL   = "tinyllama"
 VISION_MODEL = "moondream"
 
-VISION_TIMEOUT = 600   # seconds per image — moondream on MacBook Air ~5–15s each
-TEXT_TIMEOUT   = 120
+VISION_TIMEOUT = 600   
+TEXT_TIMEOUT   = 600
 
-MIN_IMG_WIDTH  = 100   # skip decorative/icon images
+MIN_IMG_WIDTH  = 100   
 MIN_IMG_HEIGHT = 100
 
-# ── ChromaDB ──────────────────────────────────────────────────────────────────
 
 @st.cache_resource
 def get_collection():
@@ -40,10 +38,8 @@ def get_collection():
 
 collection = get_collection()
 
-# ── Extraction ────────────────────────────────────────────────────────────────
 
 def extract_text_chunks(file_path: str, file_name: str) -> list[dict]:
-    """Layout-aware text extraction via unstructured."""
     chunks, current, current_type = [], [], None
     try:
         elements = partition(filename=file_path)
@@ -67,7 +63,6 @@ def extract_text_chunks(file_path: str, file_name: str) -> list[dict]:
 
 
 def caption_image(img_bytes: bytes) -> str | None:
-    """Send image to vision model; return caption or None on failure."""
     img_b64 = base64.b64encode(img_bytes).decode("utf-8")
     payload  = {
         "model":  VISION_MODEL,
@@ -92,7 +87,6 @@ def caption_image(img_bytes: bytes) -> str | None:
 
 def extract_image_chunks(file_path: str, file_name: str,
                          progress_placeholder) -> list[dict]:
-    """Extract and caption all non-trivial images from a PDF."""
     chunks = []
     try:
         doc        = fitz.open(file_path)
@@ -105,14 +99,12 @@ def extract_image_chunks(file_path: str, file_name: str,
         for i, (page_num, img) in enumerate(all_images):
             xref       = img[0]
             base_image = doc.extract_image(xref)
-
-            # Skip tiny images (logos, icons, decorations)
             if (base_image.get("width",  0) < MIN_IMG_WIDTH or
                     base_image.get("height", 0) < MIN_IMG_HEIGHT):
                 continue
 
             progress_placeholder.text(
-                f"  🖼️  Captioning image {i + 1}/{total} on page {page_num + 1}…"
+                f"Captioning image {i + 1}/{total} on page {page_num + 1}…"
             )
             caption = caption_image(base_image["image"])
             if caption:
@@ -132,12 +124,9 @@ def extract_all_chunks(file_path: str, file_name: str,
         chunks += extract_image_chunks(file_path, file_name, progress_placeholder)
     return chunks or [{"text": "No content extracted.", "type": "Unknown"}]
 
-# ── RAG helpers ───────────────────────────────────────────────────────────────
 
 SEARCH_TYPES = ["NarrativeText", "Title", "ListItem", "Table", "ImageCaption"]
-
 def retrieve_chunks(question: str, n: int = 5) -> tuple[list, list]:
-    """Retrieve top-n chunks; fall back to unfiltered if no typed results."""
     try:
         results = collection.query(
             query_texts=[question],
@@ -158,7 +147,7 @@ def ask_llm(context: str, question: str) -> str:
     prompt = (
         "You are a helpful academic tutor for WU Vienna students. "
         "Use ONLY the course material excerpts below to answer. "
-        "If the answer is not in the excerpts, say so clearly.\n\n"
+        "If the answer is not in the excerpts, say so clearly. If the answer is not contained in the retrieved materials, answer with I don't know or I don't have this information\n\n"
         f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
     )
     payload = {"model": TEXT_MODEL, "prompt": prompt, "stream": False}
@@ -169,25 +158,23 @@ def ask_llm(context: str, question: str) -> str:
     except Exception as e:
         return f"Error communicating with Ollama: {e}"
 
-# ── Streamlit UI ──────────────────────────────────────────────────────────────
 
 st.set_page_config(
     page_title="WU Vienna — Multimodal RAG",
     page_icon="🎓",
     layout="wide",
 )
-st.title("🎓 WU Vienna Course Tutor — Multimodal RAG")
+st.title("🎓 Data Science Programming Project — Multimodal RAG")
+st.write("In our workshop we investigated how RAG can be different in terms of architechtures, and the main limitation that arised from all three types of approaches was the fact that images/visualizations that are foten present in university material couldn't be processed and stored. This is the ambition for the proposed multimodal RAG!")
 st.caption(
     f"Text model: **{TEXT_MODEL}** · Vision model: **{VISION_MODEL}** · "
     f"DB: `{CHROMA_DIR}`"
 )
 
-# ── Sidebar: ingest ───────────────────────────────────────────────────────────
 
 with st.sidebar:
     st.header("📂 Knowledge Base")
 
-    # Show what's already indexed
     try:
         count = collection.count()
         st.metric("Chunks indexed", count)
@@ -211,8 +198,6 @@ with st.sidebar:
             status_text.text(f"Processing {file.name}…")
 
             chunks = extract_all_chunks(file_path, file.name, status_text)
-
-            # Upsert so re-ingesting the same file doesn't duplicate
             for idx, chunk in enumerate(chunks):
                 chunk_id = f"{file.name}_chunk{idx + 1}"
                 collection.upsert(
@@ -230,12 +215,9 @@ with st.sidebar:
         collection.delete(where={"type": {"$in": SEARCH_TYPES + ["Unknown"]}})
         st.rerun()
 
-# ── Main: chat ────────────────────────────────────────────────────────────────
 
 if "history" not in st.session_state:
-    st.session_state.history = []   # list of {"role": "user"|"assistant", "content": str}
-
-# Render conversation history
+    st.session_state.history = []   
 for msg in st.session_state.history:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
@@ -260,7 +242,6 @@ if query:
 
         st.write(answer)
 
-        # Show sources in an expander
         if chunks:
             with st.expander("📎 Retrieved context", expanded=False):
                 for i, (chunk, meta) in enumerate(zip(chunks, metas), 1):

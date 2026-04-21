@@ -1,7 +1,0 @@
-streamlit
-chromadb
-sentence-transformer
-requests
-pymupdf
-unstructured[all-docs]
-pysqlite3-binary

@@ -164,7 +164,8 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide",
 )
-st.title("🎓 WU Vienna Course Tutor — Multimodal RAG")
+st.title("🎓 Data Science Programming Project — Multimodal RAG")
+st.write("In our workshop we investigated how RAG can be different in terms of architechtures, and the main limitation that arised from all three types of approaches was the fact that images/visualizations that are foten present in university material couldn't be processed and stored. This is the ambition for the proposed multimodal RAG!")
 st.caption(
     f"Text model: **{TEXT_MODEL}** · Vision model: **{VISION_MODEL}** · "
     f"DB: `{CHROMA_DIR}`"
